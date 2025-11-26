@@ -1,11 +1,73 @@
-import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, CheckCircle, XCircle, AlertTriangle, Plus, Trash2 } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DecisionOS Tool</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: #111827; margin: 0; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #3b82f6; cursor: pointer; }
+    input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #3b82f6; cursor: pointer; border: none; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState } = React;
 
-const decisionOSTool = () => {
+// Inline SVG Icons
+const ChevronDown = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+  </svg>
+);
+
+const ChevronRight = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+  </svg>
+);
+
+const CheckCircle = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+const XCircle = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+const AlertTriangle = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+  </svg>
+);
+
+const Plus = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+  </svg>
+);
+
+const Trash2 = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+);
+
+const DecisionOSTool = () => {
   const [expandedEpic, setExpandedEpic] = useState(null);
   const [expandedSections, setExpandedSections] = useState({});
   const [epics, setEpics] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingEpic, setEditingEpic] = useState(null);
 
   const toggleSection = (epicId, section) => {
     setExpandedSections(prev => ({
@@ -14,49 +76,94 @@ const decisionOSTool = () => {
     }));
   };
 
+  // Generate cash flows from Simple Mode parameters
+  const generateCashFlows = (financial) => {
+    if (financial.mode !== 'simple') return financial; // Don't modify in advanced mode
+    
+    const { steadyStateAnnualBenefit, ongoingAnnualOpex, rampYear1Percent, rampYear2Percent, rampYear3Percent, yearsToShow } = financial;
+    const newRevenue = [0];
+    const newOpex = [0];
+    
+    for (let year = 1; year <= 10; year++) {
+      let rampPercent = 100;
+      if (year === 1) rampPercent = rampYear1Percent || 0;
+      else if (year === 2) rampPercent = rampYear2Percent || 0;
+      else rampPercent = rampYear3Percent || 100;
+      
+      newRevenue[year] = (steadyStateAnnualBenefit || 0) * (rampPercent / 100);
+      newOpex[year] = year <= (yearsToShow || 5) ? (ongoingAnnualOpex || 0) : 0;
+    }
+    
+    return {
+      ...financial,
+      yearlyRevenue: newRevenue,
+      yearlyOpex: newOpex
+    };
+  };
+
   // New epic template
-  const createNewEpic = () => ({
-    id: Date.now(),
-    name: "",
-    description: "",
-    lifecycle: "BUILD",
-    altitude: "EFFICIENCY",
-    lifecycleContext: "",
-    
-    spotTest1: {
-      value: { score: 5, rationale: "" },
-      usability: { score: 5, rationale: "" },
-      feasibility: { score: 5, rationale: "" },
-      business: { score: 5, rationale: "" },
-      passed: true
-    },
-    
-    spotTest0: {
-      impact: "HIGH",
-      effort: "LOW"
-    },
-    
-    financial: {
+  const createNewEpic = () => {
+    const baseFinancial = {
+      mode: 'simple', // 'simple' or 'advanced'
       fixedCosts: 100000,
       variableCosts: 20000,
       totalInvestment: 120000,
-      yearlyRevenue: [0, 100000, 150000, 200000, 250000],
-      yearlyOpex: [0, 30000, 35000, 40000, 45000],
-      discountRate: 0.10
-    },
+      
+      // Simple Mode inputs
+      steadyStateAnnualBenefit: 500000,
+      ongoingAnnualOpex: 50000,
+      rampYear1Percent: 40,
+      rampYear2Percent: 80,
+      rampYear3Percent: 100,
+      
+      // Will be generated
+      yearlyRevenue: [],
+      yearlyOpex: [],
+      
+      discountRate: 0.10,
+      yearsToShow: 5
+    };
     
-    ndr: {
-      upar: { score: 5, name: "User Pain, Alternatives, Relevance", rationale: "" },
-      map: { score: 5, name: "Market Activation Potential", rationale: "" },
-      cev: { score: 5, name: "Core Experience Value", rationale: "" },
-      star: { score: 5, name: "Scalability, Transferability, Adjacent, Reuse", rationale: "" },
-      ai: { score: 5, name: "AI Enhancement Potential", rationale: "" },
-      vcrm: { score: 5, name: "Value × Confidence × (1-Risk) × Money", rationale: "", calculation: "" },
-      layer: { score: 5, name: "Legal, Alignment, Yield, Explainability, Risk", rationale: "" }
-    },
+    const generatedFinancial = generateCashFlows(baseFinancial);
     
-    sensitivity: "What assumptions could change this score? (e.g., 'If LAYER drops below 6, decision flips to HOLD')"
-  });
+    const newEpic = {
+      id: Date.now(),
+      name: "",
+      description: "",
+      lifecycle: "BUILD",
+      altitude: "EFFICIENCY",
+      lifecycleContext: "",
+      
+      spotTest1: {
+        value: { score: 5, rationale: "" },
+        usability: { score: 5, rationale: "" },
+        feasibility: { score: 5, rationale: "" },
+        business: { score: 5, rationale: "" },
+        passed: true
+      },
+      
+      spotTest0: {
+        impact: "HIGH",
+        effort: "LOW"
+      },
+      
+      financial: generatedFinancial,
+      
+      ndr: {
+        upar: { score: 5, name: "User Pain, Alternatives, Relevance", rationale: "" },
+        map: { score: 5, name: "Market Activation Potential", rationale: "" },
+        cev: { score: 5, name: "Core Experience Value", rationale: "" },
+        star: { score: 5, name: "Scalability, Transferability, Adjacent, Reuse", rationale: "" },
+        ai: { score: 5, name: "AI Enhancement Potential", rationale: "" },
+        vcrm: { score: 5, name: "Value × Confidence × (1-Risk) × Money", rationale: "", calculation: "" },
+        layer: { score: 5, name: "Legal, Alignment, Yield, Explainability, Risk", rationale: "" }
+      },
+      
+      sensitivity: "What assumptions could change this score? (e.g., 'If LAYER drops below 6, decision flips to HOLD')"
+    };
+    
+    return newEpic;
+  };
 
   const [newEpic, setNewEpic] = useState(createNewEpic());
 
@@ -70,15 +177,34 @@ const decisionOSTool = () => {
 
   const calculateNPV = (financial) => {
     const { totalInvestment, yearlyRevenue, yearlyOpex, discountRate } = financial;
+    const yearsToShow = financial.yearsToShow || 5;
     let npv = -totalInvestment;
-    for (let year = 1; year <= 5; year++) {
+    let cumulative = -totalInvestment;
+    let paybackYear = null;
+    let paybackMonths = null;
+    
+    for (let year = 1; year <= yearsToShow; year++) {
       const revenue = yearlyRevenue[year] || 0;
       const opex = yearlyOpex[year] || 0;
       const netCashFlow = revenue - opex;
       const discountedFlow = netCashFlow / Math.pow(1 + discountRate, year);
       npv += discountedFlow;
+      
+      // Calculate payback (undiscounted)
+      const prevCumulative = cumulative;
+      cumulative += netCashFlow;
+      if (cumulative >= 0 && prevCumulative < 0 && paybackYear === null) {
+        paybackYear = year;
+        if (netCashFlow > 0) {
+          const monthsInYear = Math.ceil((Math.abs(prevCumulative) / netCashFlow) * 12);
+          paybackMonths = (year - 1) * 12 + monthsInYear;
+        } else {
+          paybackMonths = year * 12;
+        }
+      }
     }
-    return npv;
+    
+    return { npv, paybackYear, paybackMonths };
   };
 
   const calculateVUFB = (spotTest1) => {
@@ -129,8 +255,8 @@ const decisionOSTool = () => {
 
   const rankedEpics = epics.map(epic => {
     const ndrCalc = calculateNDR(epic.ndr);
-    const npv = calculateNPV(epic.financial);
-    const decision = getLifecycleDecision(epic, ndrCalc.ndrScore, npv);
+    const npvResult = calculateNPV(epic.financial);
+    const decision = getLifecycleDecision(epic, ndrCalc.ndrScore, npvResult.npv);
     const vufbScore = calculateVUFB(epic.spotTest1);
     
     const benefitContribution = (0.5 * ndrCalc.benefitScore) * ndrCalc.feasMult;
@@ -138,7 +264,7 @@ const decisionOSTool = () => {
     const benefitPercent = ndrCalc.ndrScore > 0 ? (benefitContribution / ndrCalc.ndrScore) * 100 : 50;
     const financePercent = ndrCalc.ndrScore > 0 ? (financeContribution / ndrCalc.ndrScore) * 100 : 50;
     
-    return { ...epic, npv, vufbScore, ...ndrCalc, decision, benefitPercent, financePercent };
+    return { ...epic, npv: npvResult.npv, paybackYear: npvResult.paybackYear, paybackMonths: npvResult.paybackMonths, vufbScore, ...ndrCalc, decision, benefitPercent, financePercent };
   }).sort((a, b) => {
     if (a.decision.gated && !b.decision.gated) return 1;
     if (!a.decision.gated && b.decision.gated) return -1;
@@ -147,27 +273,65 @@ const decisionOSTool = () => {
 
   const addEpic = () => {
     if (newEpic.name.trim()) {
-      const epicToAdd = {
-        ...newEpic,
-        id: Date.now(),
-        financial: {
-          ...newEpic.financial,
-          totalInvestment: newEpic.financial.fixedCosts + newEpic.financial.variableCosts
-        },
-        lifecycleContext: `${newEpic.lifecycle} + ${newEpic.altitude} → Strategic positioning for this phase`,
-        spotTest1: {
-          ...newEpic.spotTest1,
-          passed: calculateVUFB(newEpic.spotTest1) >= 5.0
-        }
-      };
-      setEpics([...epics, epicToAdd]);
-      setNewEpic(createNewEpic());
-      setShowAddForm(false);
+      try {
+        const generatedFinancial = generateCashFlows(newEpic.financial);
+        
+        const epicToAdd = {
+          ...newEpic,
+          id: Date.now(),
+          financial: {
+            ...generatedFinancial,
+            totalInvestment: newEpic.financial.fixedCosts + newEpic.financial.variableCosts,
+            yearsToShow: newEpic.financial.yearsToShow || 5
+          },
+          lifecycleContext: `${newEpic.lifecycle} + ${newEpic.altitude} → Strategic positioning for this phase`,
+          spotTest1: {
+            ...newEpic.spotTest1,
+            passed: calculateVUFB(newEpic.spotTest1) >= 5.0
+          }
+        };
+        
+        setEpics([...epics, epicToAdd]);
+        setNewEpic(createNewEpic());
+        setShowAddForm(false);
+      } catch (error) {
+        console.error('Error adding epic:', error);
+        alert('Error adding epic: ' + error.message);
+      }
+    } else {
     }
   };
 
   const removeEpic = (id) => {
     setEpics(epics.filter(e => e.id !== id));
+  };
+
+  const startEditingEpic = (epic) => {
+    setEditingEpic(JSON.parse(JSON.stringify(epic))); // Deep clone
+  };
+
+  const updateEditingEpic = (path, value) => {
+    setEditingEpic(prev => {
+      const updated = JSON.parse(JSON.stringify(prev));
+      const keys = path.split('.');
+      let current = updated;
+      for (let i = 0; i < keys.length - 1; i++) {
+        current = current[keys[i]];
+      }
+      current[keys[keys.length - 1]] = value;
+      return updated;
+    });
+  };
+
+  const saveEditedEpic = () => {
+    if (editingEpic) {
+      setEpics(epics.map(e => e.id === editingEpic.id ? editingEpic : e));
+      setEditingEpic(null);
+    }
+  };
+
+  const cancelEditing = () => {
+    setEditingEpic(null);
   };
 
   const updateNewEpic = (path, value) => {
@@ -179,6 +343,21 @@ const decisionOSTool = () => {
         current = current[keys[i]];
       }
       current[keys[keys.length - 1]] = value;
+      
+      // Auto-regenerate cash flows if Simple Mode param changed
+      const simpleModePaths = [
+        'financial.steadyStateAnnualBenefit',
+        'financial.ongoingAnnualOpex',
+        'financial.rampYear1Percent',
+        'financial.rampYear2Percent',
+        'financial.rampYear3Percent',
+        'financial.yearsToShow'
+      ];
+      
+      if (updated.financial.mode === 'simple' && simpleModePaths.includes(path)) {
+        updated.financial = generateCashFlows(updated.financial);
+      }
+      
       return updated;
     });
   };
@@ -234,6 +413,9 @@ const decisionOSTool = () => {
           <h2 className="text-2xl font-bold text-white mb-4">
             <span className="text-blue-400 mr-2">0.</span>Strategic Grid Placement
           </h2>
+          <p className="text-gray-300 text-sm mb-4">
+            Quick 5-minute strategic placement check. Does this work type make sense for your current lifecycle phase? Wrong cell = AUTO-KILL.
+          </p>
           <p className="text-sm text-gray-400 mb-2">
             <strong className="text-yellow-400">FIRST GATE:</strong> Place your work item in the grid. If the cell has no colored dots, it's an <strong className="text-red-400">AUTO-KILL</strong> — wrong phase for that work type.
           </p>
@@ -596,11 +778,11 @@ const decisionOSTool = () => {
           <h2 className="text-2xl font-bold text-white mb-3">
             <span className="text-yellow-400 mr-2">1.</span>🎯 Spot Test 0: Effort/Impact 2x2
           </h2>
-          <p className="text-gray-300 text-sm mb-4">Quick 2-minute leverage check. Is it big enough and fast enough to be worth analyzing? Kills 40-50% of ideas.</p>
+          <p className="text-gray-300 text-sm mb-4">Quick 5-minute leverage check. Is it big enough and fast enough to be worth analyzing? Kills 40-50% of ideas.</p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="bg-gray-800 bg-opacity-50 rounded p-4">
-              <div className="text-blue-400 font-semibold mb-2">⏱️ Time: 2 minutes</div>
+              <div className="text-blue-400 font-semibold mb-2">⏱️ Time: 5 minutes</div>
               <p className="text-xs text-gray-300">Quick gut check on impact vs. effort trade-off</p>
             </div>
             <div className="bg-gray-800 bg-opacity-50 rounded p-4">
@@ -686,12 +868,12 @@ const decisionOSTool = () => {
             <span className="text-green-400 mr-2">2.</span>📋 Spot Test 1: VUFB Quick Check
           </h2>
           <p className="text-gray-300 text-sm mb-4">
-            5-10 minute strategic fit evaluation. Are we warm or hot on this idea? Threshold: VUFB ≥ 5.0 to proceed.
+            5-minute strategic fit evaluation. Are we warm or hot on this idea? Threshold: VUFB ≥ 5.0 to proceed.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="bg-gray-800 bg-opacity-50 rounded p-4">
-              <div className="text-yellow-400 font-semibold mb-2">⏱️ Time: 5-10 minutes</div>
+              <div className="text-yellow-400 font-semibold mb-2">⏱️ Time: 5 minutes</div>
               <p className="text-xs text-gray-300">Strategic alignment deep dive</p>
             </div>
             <div className="bg-gray-800 bg-opacity-50 rounded p-4">
@@ -917,11 +1099,38 @@ const decisionOSTool = () => {
               {/* VUFB */}
               <div className="bg-gray-900 rounded-lg p-4 mb-4">
                 <div className="text-sm font-semibold text-green-400 mb-3">Stage 2: VUFB Quick Check</div>
-                <div className="space-y-3">
-                  <ScoreSlider label="Value" value={newEpic.spotTest1.value.score} onChange={(v) => updateNewEpic('spotTest1.value.score', v)} />
-                  <ScoreSlider label="Usability" value={newEpic.spotTest1.usability.score} onChange={(v) => updateNewEpic('spotTest1.usability.score', v)} />
-                  <ScoreSlider label="Feasibility" value={newEpic.spotTest1.feasibility.score} onChange={(v) => updateNewEpic('spotTest1.feasibility.score', v)} />
-                  <ScoreSlider label="Business" value={newEpic.spotTest1.business.score} onChange={(v) => updateNewEpic('spotTest1.business.score', v)} />
+                <div className="space-y-4">
+                  {/* Value */}
+                  <div className="bg-gray-800 p-3 rounded">
+                    <ScoreSlider label="Value" value={newEpic.spotTest1.value.score} onChange={(v) => updateNewEpic('spotTest1.value.score', v)} />
+                    <div className="text-xs text-gray-400 mt-1 italic">
+                      How much value does this create for users? Revenue potential? Cost savings? Strategic positioning?
+                    </div>
+                  </div>
+                  
+                  {/* Usability */}
+                  <div className="bg-gray-800 p-3 rounded">
+                    <ScoreSlider label="Usability" value={newEpic.spotTest1.usability.score} onChange={(v) => updateNewEpic('spotTest1.usability.score', v)} />
+                    <div className="text-xs text-gray-400 mt-1 italic">
+                      Can users actually use this? Is it intuitive? Does it fit existing workflows? Adoption barriers?
+                    </div>
+                  </div>
+                  
+                  {/* Feasibility */}
+                  <div className="bg-gray-800 p-3 rounded">
+                    <ScoreSlider label="Feasibility" value={newEpic.spotTest1.feasibility.score} onChange={(v) => updateNewEpic('spotTest1.feasibility.score', v)} />
+                    <div className="text-xs text-gray-400 mt-1 italic">
+                      Can we actually build this? Technical complexity? Dependencies? Timeline realistic? Team capability?
+                    </div>
+                  </div>
+                  
+                  {/* Business */}
+                  <div className="bg-gray-800 p-3 rounded">
+                    <ScoreSlider label="Business" value={newEpic.spotTest1.business.score} onChange={(v) => updateNewEpic('spotTest1.business.score', v)} />
+                    <div className="text-xs text-gray-400 mt-1 italic">
+                      Business fit? Aligns with strategy? Legal/compliance OK? Supports business model? Go-to-market viable?
+                    </div>
+                  </div>
                 </div>
                 <div className="mt-3 text-center">
                   <span className="text-gray-400 text-sm">VUFB Score: </span>
@@ -942,14 +1151,59 @@ const decisionOSTool = () => {
                     NPV = -Initial Investment + Σ (Net Cash Flow<sub>t</sub> / (1 + r)<sup>t</sup>)
                   </div>
                   <div className="text-xs text-gray-300 mt-2">
-                    Where: r = discount rate ({(newEpic.financial.discountRate * 100).toFixed(0)}%), t = year (1 to 5)
+                    Where: r = discount rate ({(newEpic.financial.discountRate * 100).toFixed(0)}%), t = each year in projection horizon
                   </div>
                   <div className="text-xs text-gray-300 mt-1">
                     Net Cash Flow = Revenue - Operating Expenses (OpEx)
                   </div>
                 </div>
 
-                {/* Investment Costs - Editable Cards */}
+                {/* Mode Toggle */}
+                <div className="mb-4 flex items-center gap-4 bg-gray-800 p-3 rounded">
+                  <span className="text-sm text-gray-400">Modeling Mode:</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => updateNewEpic('financial.mode', 'simple')}
+                      className={`px-4 py-2 rounded text-sm font-semibold transition-colors ${
+                        newEpic.financial.mode === 'simple' 
+                          ? 'bg-blue-600 text-white' 
+                          : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                      }`}
+                    >
+                      ◉ Simple (Driver-Based)
+                    </button>
+                    <button
+                      onClick={() => updateNewEpic('financial.mode', 'advanced')}
+                      className={`px-4 py-2 rounded text-sm font-semibold transition-colors ${
+                        newEpic.financial.mode === 'advanced' 
+                          ? 'bg-purple-600 text-white' 
+                          : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                      }`}
+                    >
+                      ⚙ Advanced (Manual Year-by-Year)
+                    </button>
+                  </div>
+                </div>
+
+                {newEpic.financial.mode === 'simple' && (
+                  <div className="bg-blue-900 bg-opacity-20 p-4 rounded mb-4 border border-blue-700">
+                    <h5 className="text-sm font-semibold text-blue-400 mb-3">💡 Simple Mode: Strategic Assumptions</h5>
+                    <p className="text-xs text-gray-300 mb-4">
+                      Define high-level parameters and let DecisionOS generate year-by-year cash flows. Perfect for quick evaluations.
+                    </p>
+                  </div>
+                )}
+
+                {newEpic.financial.mode === 'advanced' && (
+                  <div className="bg-purple-900 bg-opacity-20 p-4 rounded mb-4 border border-purple-700">
+                    <h5 className="text-sm font-semibold text-purple-400 mb-3">⚙ Advanced Mode: Manual Control</h5>
+                    <p className="text-xs text-gray-300 mb-4">
+                      Edit revenue and opex year-by-year for complex scenarios with non-linear growth patterns.
+                    </p>
+                  </div>
+                )}
+
+                {/* Investment Costs - Always Visible */}
                 <div className="grid grid-cols-3 gap-4 mb-4">
                   <div className="bg-gray-800 p-3 rounded">
                     <div className="text-sm text-gray-400 mb-1">Fixed Costs</div>
@@ -983,21 +1237,190 @@ const decisionOSTool = () => {
                   </div>
                 </div>
 
-                {/* Discount Rate Input */}
-                <div className="mb-4 flex items-center gap-3">
-                  <span className="text-sm text-gray-400">Discount Rate:</span>
-                  <input
-                    type="number"
-                    step="1"
-                    value={(newEpic.financial.discountRate * 100).toFixed(0)}
-                    onChange={(e) => updateNewEpic('financial.discountRate', (parseFloat(e.target.value) || 10) / 100)}
-                    className="w-16 bg-gray-700 text-white rounded px-2 py-1 text-sm outline-none text-center"
-                  />
-                  <span className="text-sm text-gray-400">%</span>
+                {/* Simple Mode: Strategic Inputs */}
+                {newEpic.financial.mode === 'simple' && (
+                  <>
+                    <div className="bg-gray-800 p-4 rounded mb-4">
+                      <h5 className="text-sm font-semibold text-green-400 mb-3">Expected Returns (Steady-State)</h5>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <div className="text-xs text-gray-400 mb-2">Annual Benefit (Revenue + Savings)</div>
+                          <div className="flex items-center">
+                            <span className="text-white text-lg font-bold mr-1">$</span>
+                            <input
+                              type="number"
+                              value={newEpic.financial.steadyStateAnnualBenefit}
+                              onChange={(e) => updateNewEpic('financial.steadyStateAnnualBenefit', parseFloat(e.target.value) || 0)}
+                              className="w-full bg-gray-700 text-green-400 text-lg font-bold rounded px-2 py-1 outline-none"
+                            />
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">Expected annual value at full scale</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-400 mb-2">Ongoing Annual OpEx</div>
+                          <div className="flex items-center">
+                            <span className="text-white text-lg font-bold mr-1">$</span>
+                            <input
+                              type="number"
+                              value={newEpic.financial.ongoingAnnualOpex}
+                              onChange={(e) => updateNewEpic('financial.ongoingAnnualOpex', parseFloat(e.target.value) || 0)}
+                              className="w-full bg-gray-700 text-red-400 text-lg font-bold rounded px-2 py-1 outline-none"
+                            />
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">Recurring costs to maintain/operate</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-800 p-4 rounded mb-4">
+                      <h5 className="text-sm font-semibold text-yellow-400 mb-3">Ramp Timeline (% of Steady-State)</h5>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-gray-400 w-16">Year 1:</span>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="5"
+                            value={newEpic.financial.rampYear1Percent}
+                            onChange={(e) => updateNewEpic('financial.rampYear1Percent', parseFloat(e.target.value))}
+                            className="flex-1"
+                          />
+                          <span className="text-sm text-white font-semibold w-12">{newEpic.financial.rampYear1Percent}%</span>
+                          <span className="text-xs text-green-400 w-24">
+                            = {formatCurrency((newEpic.financial.steadyStateAnnualBenefit || 0) * (newEpic.financial.rampYear1Percent / 100))}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-gray-400 w-16">Year 2:</span>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="5"
+                            value={newEpic.financial.rampYear2Percent}
+                            onChange={(e) => updateNewEpic('financial.rampYear2Percent', parseFloat(e.target.value))}
+                            className="flex-1"
+                          />
+                          <span className="text-sm text-white font-semibold w-12">{newEpic.financial.rampYear2Percent}%</span>
+                          <span className="text-xs text-green-400 w-24">
+                            = {formatCurrency((newEpic.financial.steadyStateAnnualBenefit || 0) * (newEpic.financial.rampYear2Percent / 100))}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-gray-400 w-16">Year 3+:</span>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="5"
+                            value={newEpic.financial.rampYear3Percent}
+                            onChange={(e) => updateNewEpic('financial.rampYear3Percent', parseFloat(e.target.value))}
+                            className="flex-1"
+                          />
+                          <span className="text-sm text-white font-semibold w-12">{newEpic.financial.rampYear3Percent}%</span>
+                          <span className="text-xs text-green-400 w-24">
+                            = {formatCurrency((newEpic.financial.steadyStateAnnualBenefit || 0) * (newEpic.financial.rampYear3Percent / 100))}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-gray-700">
+                        <div className="text-xs text-gray-400 mb-2">Quick Presets:</div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateNewEpic('financial.rampYear1Percent', 60);
+                              updateNewEpic('financial.rampYear2Percent', 90);
+                              updateNewEpic('financial.rampYear3Percent', 100);
+                            }}
+                            className="px-3 py-1 bg-green-700 hover:bg-green-600 text-white text-xs rounded transition-colors"
+                          >
+                            🚀 Fast (60/90/100%)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateNewEpic('financial.rampYear1Percent', 40);
+                              updateNewEpic('financial.rampYear2Percent', 80);
+                              updateNewEpic('financial.rampYear3Percent', 100);
+                            }}
+                            className="px-3 py-1 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded transition-colors"
+                          >
+                            ⚡ Medium (40/80/100%)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateNewEpic('financial.rampYear1Percent', 20);
+                              updateNewEpic('financial.rampYear2Percent', 60);
+                              updateNewEpic('financial.rampYear3Percent', 100);
+                            }}
+                            className="px-3 py-1 bg-yellow-700 hover:bg-yellow-600 text-white text-xs rounded transition-colors"
+                          >
+                            🐢 Slow (20/60/100%)
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Discount Rate & Years - Always Visible */}
+                <div className="bg-gray-800 p-4 rounded mb-4">
+                  <h5 className="text-sm font-semibold text-gray-400 mb-3">Analysis Parameters</h5>
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-gray-400">Discount Rate:</span>
+                      <input
+                        type="number"
+                        step="1"
+                        value={(newEpic.financial.discountRate * 100).toFixed(0)}
+                        onChange={(e) => updateNewEpic('financial.discountRate', (parseFloat(e.target.value) || 10) / 100)}
+                        className="w-16 bg-gray-700 text-white rounded px-2 py-1 text-sm outline-none text-center"
+                      />
+                      <span className="text-sm text-gray-400">%</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-gray-400">Horizon:</span>
+                      <span className="text-white font-semibold">{newEpic.financial.yearsToShow || 5} years</span>
+                      <div className="flex gap-1">
+                        {(newEpic.financial.yearsToShow || 5) > 5 && (
+                          <button
+                            type="button"
+                            onClick={() => updateNewEpic('financial.yearsToShow', (newEpic.financial.yearsToShow || 5) - 1)}
+                            className="text-xs px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-white transition-colors"
+                          >
+                            −
+                          </button>
+                        )}
+                        {(newEpic.financial.yearsToShow || 5) < 10 && (
+                          <button
+                            type="button"
+                            onClick={() => updateNewEpic('financial.yearsToShow', (newEpic.financial.yearsToShow || 5) + 1)}
+                            className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-500 rounded text-white transition-colors"
+                          >
+                            +
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Full 5-Year Cash Flow Table with Editable Inputs */}
-                <div className="overflow-x-auto">
+                {/* Cash Flow Projection Table */}
+                <div className="mb-2 flex items-center justify-between">
+                  <h5 className="text-sm font-semibold text-white">
+                    Cash Flow Projection 
+                    {newEpic.financial.mode === 'simple' && <span className="text-xs text-blue-400 ml-2">(Auto-Generated)</span>}
+                    {newEpic.financial.mode === 'advanced' && <span className="text-xs text-purple-400 ml-2">(Editable)</span>}
+                  </h5>
+                  {newEpic.financial.mode === 'simple' && (
+                    <span className="text-xs text-gray-500 italic">Values calculated from ramp × steady-state</span>
+                  )}
+                </div>
+                <div className={`overflow-x-auto ${newEpic.financial.mode === 'simple' ? 'opacity-90' : ''}`}>
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="bg-gray-800">
@@ -1023,14 +1446,21 @@ const decisionOSTool = () => {
                         <td className="p-2 text-right text-red-400 font-semibold">{formatCurrency(-(newEpic.financial.fixedCosts + newEpic.financial.variableCosts))}</td>
                         <td className="p-2 text-right text-red-400 font-bold">{formatCurrency(-(newEpic.financial.fixedCosts + newEpic.financial.variableCosts))}</td>
                       </tr>
-                      {/* Years 1-5 with editable Revenue and OpEx */}
+                      {/* Years 1-N with editable Revenue and OpEx */}
                       {(() => {
                         const totalInvestment = newEpic.financial.fixedCosts + newEpic.financial.variableCosts;
+                        const yearsToShow = newEpic.financial.yearsToShow || 5;
                         let runningUndiscounted = -totalInvestment;
                         let runningNPV = -totalInvestment;
-                        return [1, 2, 3, 4, 5].map(year => {
-                          const revenue = newEpic.financial.yearlyRevenue[year] || 0;
-                          const opex = newEpic.financial.yearlyOpex[year] || 0;
+                        
+                        const years = [];
+                        for (let year = 1; year <= yearsToShow; year++) {
+                          years.push(year);
+                        }
+                        
+                        return years.map(year => {
+                          const revenue = (newEpic.financial.yearlyRevenue && newEpic.financial.yearlyRevenue[year]) || 0;
+                          const opex = (newEpic.financial.yearlyOpex && newEpic.financial.yearlyOpex[year]) || 0;
                           const netCashFlow = revenue - opex;
                           const discountFactor = 1 / Math.pow(1 + newEpic.financial.discountRate, year);
                           const discountedFlow = netCashFlow * discountFactor;
@@ -1040,28 +1470,42 @@ const decisionOSTool = () => {
                             <tr key={year} className="border-t border-gray-700">
                               <td className="p-2 text-white font-semibold">{year}</td>
                               <td className="p-1">
-                                <input
-                                  type="number"
-                                  value={revenue}
-                                  onChange={(e) => {
-                                    const updated = [...newEpic.financial.yearlyRevenue];
-                                    updated[year] = parseFloat(e.target.value) || 0;
-                                    updateNewEpic('financial.yearlyRevenue', updated);
-                                  }}
-                                  className="w-full bg-gray-700 text-green-400 rounded px-2 py-1 text-xs outline-none text-right"
-                                />
+                                {newEpic.financial.mode === 'simple' ? (
+                                  <div className="text-green-400 font-semibold text-right px-2 py-1 italic opacity-80 flex items-center justify-end gap-1">
+                                    <span className="text-xs text-gray-500">🔒</span>
+                                    {formatCurrency(revenue)}
+                                  </div>
+                                ) : (
+                                  <input
+                                    type="number"
+                                    value={revenue}
+                                    onChange={(e) => {
+                                      const updated = [...(newEpic.financial.yearlyRevenue || [])];
+                                      updated[year] = parseFloat(e.target.value) || 0;
+                                      updateNewEpic('financial.yearlyRevenue', updated);
+                                    }}
+                                    className="w-full bg-gray-700 text-green-400 rounded px-2 py-1 text-xs outline-none text-right"
+                                  />
+                                )}
                               </td>
                               <td className="p-1">
-                                <input
-                                  type="number"
-                                  value={opex}
-                                  onChange={(e) => {
-                                    const updated = [...newEpic.financial.yearlyOpex];
-                                    updated[year] = parseFloat(e.target.value) || 0;
-                                    updateNewEpic('financial.yearlyOpex', updated);
-                                  }}
-                                  className="w-full bg-gray-700 text-red-400 rounded px-2 py-1 text-xs outline-none text-right"
-                                />
+                                {newEpic.financial.mode === 'simple' ? (
+                                  <div className="text-red-400 font-semibold text-right px-2 py-1 italic opacity-80 flex items-center justify-end gap-1">
+                                    <span className="text-xs text-gray-500">🔒</span>
+                                    {formatCurrency(opex)}
+                                  </div>
+                                ) : (
+                                  <input
+                                    type="number"
+                                    value={opex}
+                                    onChange={(e) => {
+                                      const updated = [...(newEpic.financial.yearlyOpex || [])];
+                                      updated[year] = parseFloat(e.target.value) || 0;
+                                      updateNewEpic('financial.yearlyOpex', updated);
+                                    }}
+                                    className="w-full bg-gray-700 text-red-400 rounded px-2 py-1 text-xs outline-none text-right"
+                                  />
+                                )}
                               </td>
                               <td className="p-2 text-right text-white font-semibold">{formatCurrency(netCashFlow)}</td>
                               <td className="p-2 text-right text-blue-300">{discountFactor.toFixed(3)}</td>
@@ -1085,30 +1529,36 @@ const decisionOSTool = () => {
                   <h5 className="text-sm font-semibold text-white mb-3">Financial Summary</h5>
                   {(() => {
                     const totalInvestment = newEpic.financial.fixedCosts + newEpic.financial.variableCosts;
-                    const totalUndiscounted = [1, 2, 3, 4, 5].reduce((sum, year) => {
-                      const revenue = newEpic.financial.yearlyRevenue[year] || 0;
-                      const opex = newEpic.financial.yearlyOpex[year] || 0;
-                      return sum + (revenue - opex);
-                    }, 0);
-                    const totalDiscounted = [1, 2, 3, 4, 5].reduce((sum, year) => {
-                      const revenue = newEpic.financial.yearlyRevenue[year] || 0;
-                      const opex = newEpic.financial.yearlyOpex[year] || 0;
+                    const yearsToShow = newEpic.financial.yearsToShow || 5;
+                    
+                    let totalUndiscounted = 0;
+                    for (let year = 1; year <= yearsToShow; year++) {
+                      const revenue = (newEpic.financial.yearlyRevenue && newEpic.financial.yearlyRevenue[year]) || 0;
+                      const opex = (newEpic.financial.yearlyOpex && newEpic.financial.yearlyOpex[year]) || 0;
+                      totalUndiscounted += (revenue - opex);
+                    }
+                    
+                    let totalDiscounted = 0;
+                    for (let year = 1; year <= yearsToShow; year++) {
+                      const revenue = (newEpic.financial.yearlyRevenue && newEpic.financial.yearlyRevenue[year]) || 0;
+                      const opex = (newEpic.financial.yearlyOpex && newEpic.financial.yearlyOpex[year]) || 0;
                       const netFlow = revenue - opex;
                       const discountFactor = 1 / Math.pow(1 + newEpic.financial.discountRate, year);
-                      return sum + (netFlow * discountFactor);
-                    }, 0);
+                      totalDiscounted += (netFlow * discountFactor);
+                    }
+                    
                     const npv = totalDiscounted - totalInvestment;
                     const timeValueCost = totalUndiscounted - totalDiscounted;
                     const roiUndiscounted = totalInvestment > 0 ? totalUndiscounted / totalInvestment : 0;
                     const roiNPV = totalInvestment > 0 ? (npv + totalInvestment) / totalInvestment : 0;
                     
                     // Calculate payback period with month precision
-                    let paybackPeriod = '>60 months';
+                    let paybackPeriod = `>${yearsToShow * 12} months`;
                     let paybackYear = null;
                     let cumulative = -totalInvestment;
-                    for (let year = 1; year <= 5; year++) {
-                      const revenue = newEpic.financial.yearlyRevenue[year] || 0;
-                      const opex = newEpic.financial.yearlyOpex[year] || 0;
+                    for (let year = 1; year <= yearsToShow; year++) {
+                      const revenue = (newEpic.financial.yearlyRevenue && newEpic.financial.yearlyRevenue[year]) || 0;
+                      const opex = (newEpic.financial.yearlyOpex && newEpic.financial.yearlyOpex[year]) || 0;
                       const prevCumulative = cumulative;
                       cumulative += (revenue - opex);
                       if (cumulative >= 0 && prevCumulative < 0) {
@@ -1177,37 +1627,85 @@ const decisionOSTool = () => {
                               <span className="text-white font-semibold">{paybackPeriod}</span>
                             </div>
                             <div className="text-gray-500 text-xs mt-1">
-                              {paybackYear ? (
-                                <>= Year when Cumulative Undiscounted ≥ $0 (crosses positive in Year {paybackYear})</>
-                              ) : (
-                                <>= Investment not recovered within 5-year horizon</>
-                              )}
+                              {paybackYear 
+                                ? `= Year when cumulative undiscounted ≥ $0 (crosses positive in Year ${paybackYear})`
+                                : `= Investment not recovered within ${yearsToShow}-year horizon`
+                              }
                             </div>
                           </div>
+                        </div>
+                        
+                        {/* Note */}
+                        <div className="mt-4 text-xs text-gray-400 italic border-t border-gray-700 pt-3">
+                          <strong>Note:</strong> Discount factor for year t = 1 / (1 + {(newEpic.financial.discountRate * 100).toFixed(0)}%)<sup>t</sup>. 
+                          The "Time Value Adjustment" shows the "cost of waiting" for future cash flows, accounting for the time value of money.
+                          {paybackPeriod.startsWith('>') && <span className="text-yellow-400"> ⚠️ Payback extends beyond {yearsToShow} years - consider adding more projection years above.</span>}
                         </div>
                       </div>
                     );
                   })()}
-                </div>
-
-                {/* Note */}
-                <div className="mt-4 text-xs text-gray-400 italic">
-                  <strong>Note:</strong> Discount factor for year t = 1 / (1 + {(newEpic.financial.discountRate * 100).toFixed(0)}%)<sup>t</sup>. 
-                  The "Time Value Adjustment" shows the "cost of waiting" for future cash flows, accounting for the time value of money.
                 </div>
               </div>
 
               {/* NDR Scores - NOW BELOW NPV */}
               <div className="bg-gray-900 rounded-lg p-4 mb-4">
                 <div className="text-sm font-semibold text-purple-400 mb-3">Stage 3: Full NDR Scoring</div>
-                <div className="space-y-3">
-                  <ScoreSlider label="UPAR" value={newEpic.ndr.upar.score} onChange={(v) => updateNewEpic('ndr.upar.score', v)} />
-                  <ScoreSlider label="MAP" value={newEpic.ndr.map.score} onChange={(v) => updateNewEpic('ndr.map.score', v)} />
-                  <ScoreSlider label="CEV" value={newEpic.ndr.cev.score} onChange={(v) => updateNewEpic('ndr.cev.score', v)} />
-                  <ScoreSlider label="STAR" value={newEpic.ndr.star.score} onChange={(v) => updateNewEpic('ndr.star.score', v)} />
-                  <ScoreSlider label="AI" value={newEpic.ndr.ai.score} onChange={(v) => updateNewEpic('ndr.ai.score', v)} />
-                  <ScoreSlider label="VCRM" value={newEpic.ndr.vcrm.score} onChange={(v) => updateNewEpic('ndr.vcrm.score', v)} />
-                  <ScoreSlider label="LAYER" value={newEpic.ndr.layer.score} onChange={(v) => updateNewEpic('ndr.layer.score', v)} />
+                <div className="space-y-4">
+                  {/* UPAR */}
+                  <div className="bg-gray-800 p-3 rounded">
+                    <ScoreSlider label="UPAR" value={newEpic.ndr.upar.score} onChange={(v) => updateNewEpic('ndr.upar.score', v)} />
+                    <div className="text-xs text-gray-400 mt-1 italic">
+                      User Pain × Alternatives × Relevance — How critical is the problem? Are there workarounds? Does it matter to core users?
+                    </div>
+                  </div>
+                  
+                  {/* MAP */}
+                  <div className="bg-gray-800 p-3 rounded">
+                    <ScoreSlider label="MAP" value={newEpic.ndr.map.score} onChange={(v) => updateNewEpic('ndr.map.score', v)} />
+                    <div className="text-xs text-gray-400 mt-1 italic">
+                      Market Activation Potential — Size of addressable market × ease of adoption × competitive positioning
+                    </div>
+                  </div>
+                  
+                  {/* CEV */}
+                  <div className="bg-gray-800 p-3 rounded">
+                    <ScoreSlider label="CEV" value={newEpic.ndr.cev.score} onChange={(v) => updateNewEpic('ndr.cev.score', v)} />
+                    <div className="text-xs text-gray-400 mt-1 italic">
+                      Core Experience Value — Does this strengthen the core product loop? Does it create defensible value?
+                    </div>
+                  </div>
+                  
+                  {/* STAR */}
+                  <div className="bg-gray-800 p-3 rounded">
+                    <ScoreSlider label="STAR" value={newEpic.ndr.star.score} onChange={(v) => updateNewEpic('ndr.star.score', v)} />
+                    <div className="text-xs text-gray-400 mt-1 italic">
+                      Scalability × Transferability × Adjacent × Reuse — Can this scale? Unlock other opportunities? Reusable tech/insights?
+                    </div>
+                  </div>
+                  
+                  {/* AI */}
+                  <div className="bg-gray-800 p-3 rounded">
+                    <ScoreSlider label="AI" value={newEpic.ndr.ai.score} onChange={(v) => updateNewEpic('ndr.ai.score', v)} />
+                    <div className="text-xs text-gray-400 mt-1 italic">
+                      AI Enhancement Potential — Can AI/ML meaningfully improve this? Is it positioned for future AI capabilities?
+                    </div>
+                  </div>
+                  
+                  {/* VCRM */}
+                  <div className="bg-gray-800 p-3 rounded">
+                    <ScoreSlider label="VCRM" value={newEpic.ndr.vcrm.score} onChange={(v) => updateNewEpic('ndr.vcrm.score', v)} />
+                    <div className="text-xs text-gray-400 mt-1 italic">
+                      Value × Confidence × (1-Risk) × Money — Expected financial upside weighted by confidence and risk-adjusted
+                    </div>
+                  </div>
+                  
+                  {/* LAYER */}
+                  <div className="bg-gray-800 p-3 rounded">
+                    <ScoreSlider label="LAYER" value={newEpic.ndr.layer.score} onChange={(v) => updateNewEpic('ndr.layer.score', v)} />
+                    <div className="text-xs text-gray-400 mt-1 italic">
+                      Legal × Alignment × Yield × Explainability × Risk — Compliance OK? Aligned to strategy? Can we execute? Risk manageable?
+                    </div>
+                  </div>
                 </div>
                 <div className="mt-4 bg-gradient-to-r from-yellow-600 to-orange-600 p-3 rounded-lg text-center">
                   <div className="text-sm text-white">Calculated NDR Score</div>
@@ -1269,14 +1767,66 @@ const decisionOSTool = () => {
                         <h3 className="text-xl font-bold text-white">{epic.name}</h3>
                         <StatusIcon decision={epic.decision} />
                         <button
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            if (editingEpic?.id === epic.id) {
+                              cancelEditing();
+                            } else {
+                              startEditingEpic(epic);
+                            }
+                          }}
+                          className={`ml-auto px-3 py-1 rounded text-xs font-semibold transition-colors ${
+                            editingEpic?.id === epic.id 
+                              ? 'bg-yellow-600 text-white hover:bg-yellow-500' 
+                              : 'bg-blue-600 text-white hover:bg-blue-500'
+                          }`}
+                        >
+                          {editingEpic?.id === epic.id ? '✕ Cancel Edit' : '✏️ Edit Scores'}
+                        </button>
+                        <button
                           onClick={(e) => { e.stopPropagation(); removeEpic(epic.id); }}
-                          className="ml-auto text-gray-500 hover:text-red-400 transition-colors"
+                          className="text-gray-500 hover:text-red-400 transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                       <p className="text-gray-400 mb-2">{epic.description}</p>
                       <div className="text-xs text-gray-400 italic mb-2">{epic.lifecycleContext}</div>
+                      
+                      {editingEpic?.id === epic.id ? (
+                        /* EDITING MODE - Phase Selection */
+                        <div className="bg-gray-800 p-3 rounded mb-3 border border-blue-600">
+                          <div className="text-sm text-blue-300 font-semibold mb-2">✏️ Editing Phase Selection (Save in NDR section)</div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="text-xs text-gray-400 block mb-1">Lifecycle Phase</label>
+                              <select
+                                value={editingEpic.lifecycle}
+                                onChange={(e) => updateEditingEpic('lifecycle', e.target.value)}
+                                className="w-full bg-gray-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="BUILD">BUILD</option>
+                                <option value="GROW">GROW</option>
+                                <option value="DEFEND">DEFEND</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-400 block mb-1">Competitive Altitude</label>
+                              <select
+                                value={editingEpic.altitude}
+                                onChange={(e) => updateEditingEpic('altitude', e.target.value)}
+                                className="w-full bg-gray-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="EFFICIENCY">EFFICIENCY</option>
+                                <option value="DIFFERENTIATION">DIFFERENTIATION</option>
+                                <option value="EXPANSION">EXPANSION</option>
+                                <option value="FRONTIER">FRONTIER</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+                      
                       <div className="flex gap-4 text-sm flex-wrap">
                         <span className={"px-2 py-1 rounded " + (
                           epic.lifecycle === 'BUILD' ? 'bg-orange-900 text-orange-200' :
@@ -1381,33 +1931,247 @@ const decisionOSTool = () => {
                         </button>
                         {expandedSections[epic.id + '-npv'] && (
                           <div className="p-4">
-                            <div className="bg-blue-900 bg-opacity-30 p-3 rounded mb-4">
-                              <h5 className="text-md font-semibold text-blue-400 mb-2">NPV Formula</h5>
-                              <div className="font-mono text-sm text-white">
-                                NPV = -Initial Investment + Σ (Net Cash Flow<sub>t</sub> / (1 + r)<sup>t</sup>)
-                              </div>
-                              <div className="text-xs text-gray-300 mt-2">
-                                Where: r = discount rate ({(epic.financial.discountRate * 100).toFixed(0)}%), t = year (1 to 5)
-                              </div>
-                              <div className="text-xs text-gray-300 mt-1">
-                                Net Cash Flow = Revenue - Operating Expenses (OpEx)
-                              </div>
-                            </div>
-                            
-                            <div className="grid grid-cols-3 gap-4 mb-4">
-                              <div className="bg-gray-800 p-3 rounded">
-                                <div className="text-sm text-gray-400">Fixed Costs</div>
-                                <div className="text-lg font-bold text-white">{formatCurrency(epic.financial.fixedCosts)}</div>
-                              </div>
-                              <div className="bg-gray-800 p-3 rounded">
-                                <div className="text-sm text-gray-400">Variable Costs</div>
-                                <div className="text-lg font-bold text-white">{formatCurrency(epic.financial.variableCosts)}</div>
-                              </div>
-                              <div className="bg-gray-800 p-3 rounded">
-                                <div className="text-sm text-gray-400">Total Investment</div>
-                                <div className="text-lg font-bold text-red-400">{formatCurrency(epic.financial.totalInvestment)}</div>
-                              </div>
-                            </div>
+                            {editingEpic?.id === epic.id ? (
+                              /* EDITING MODE - Financial Parameters */
+                              <>
+                                <div className="bg-blue-900 bg-opacity-30 p-3 rounded border border-blue-600 mb-4">
+                                  <div className="text-sm text-blue-300 font-semibold mb-1">✏️ Editing Financial Parameters</div>
+                                  <div className="text-xs text-gray-300">Adjust investment costs and revenue model below. Click "Save Changes" in the NDR section to commit all edits.</div>
+                                </div>
+
+                                {/* Investment Costs */}
+                                <div className="grid grid-cols-3 gap-4 mb-4">
+                                  <div className="bg-gray-800 p-3 rounded">
+                                    <div className="text-sm text-gray-400 mb-1">Fixed Costs</div>
+                                    <div className="flex items-center">
+                                      <span className="text-white text-lg font-bold mr-1">$</span>
+                                      <input
+                                        type="number"
+                                        value={editingEpic.financial.fixedCosts}
+                                        onChange={(e) => updateEditingEpic('financial.fixedCosts', parseFloat(e.target.value) || 0)}
+                                        className="w-full bg-gray-700 text-white text-lg font-bold rounded px-2 py-1 outline-none"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="bg-gray-800 p-3 rounded">
+                                    <div className="text-sm text-gray-400 mb-1">Variable Costs</div>
+                                    <div className="flex items-center">
+                                      <span className="text-white text-lg font-bold mr-1">$</span>
+                                      <input
+                                        type="number"
+                                        value={editingEpic.financial.variableCosts}
+                                        onChange={(e) => updateEditingEpic('financial.variableCosts', parseFloat(e.target.value) || 0)}
+                                        className="w-full bg-gray-700 text-white text-lg font-bold rounded px-2 py-1 outline-none"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="bg-gray-800 p-3 rounded">
+                                    <div className="text-sm text-gray-400 mb-1">Total Investment</div>
+                                    <div className="text-lg font-bold text-red-400">
+                                      {formatCurrency(editingEpic.financial.fixedCosts + editingEpic.financial.variableCosts)}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Mode Toggle */}
+                                <div className="mb-4 flex items-center gap-4 bg-gray-800 p-3 rounded">
+                                  <span className="text-sm text-gray-400">Mode:</span>
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => {
+                                        updateEditingEpic('financial.mode', 'simple');
+                                        const updated = {...editingEpic};
+                                        updated.financial.mode = 'simple';
+                                        updated.financial = generateCashFlows(updated.financial);
+                                        setEditingEpic(updated);
+                                      }}
+                                      className={`px-3 py-1 rounded text-xs font-semibold transition-colors ${
+                                        editingEpic.financial.mode === 'simple' 
+                                          ? 'bg-blue-600 text-white' 
+                                          : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                                      }`}
+                                    >
+                                      Simple
+                                    </button>
+                                    <button
+                                      onClick={() => updateEditingEpic('financial.mode', 'advanced')}
+                                      className={`px-3 py-1 rounded text-xs font-semibold transition-colors ${
+                                        editingEpic.financial.mode === 'advanced' 
+                                          ? 'bg-purple-600 text-white' 
+                                          : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                                      }`}
+                                    >
+                                      Advanced
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {editingEpic.financial.mode === 'simple' ? (
+                                  /* SIMPLE MODE EDITING */
+                                  <>
+                                    <div className="bg-gray-800 p-4 rounded mb-4">
+                                      <h5 className="text-sm font-semibold text-green-400 mb-3">Expected Returns (Steady-State)</h5>
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                          <div className="text-xs text-gray-400 mb-2">Annual Benefit</div>
+                                          <div className="flex items-center">
+                                            <span className="text-white font-bold mr-1">$</span>
+                                            <input
+                                              type="number"
+                                              value={editingEpic.financial.steadyStateAnnualBenefit}
+                                              onChange={(e) => {
+                                                updateEditingEpic('financial.steadyStateAnnualBenefit', parseFloat(e.target.value) || 0);
+                                                const updated = {...editingEpic};
+                                                updated.financial.steadyStateAnnualBenefit = parseFloat(e.target.value) || 0;
+                                                updated.financial = generateCashFlows(updated.financial);
+                                                setEditingEpic(updated);
+                                              }}
+                                              className="w-full bg-gray-700 text-green-400 font-bold rounded px-2 py-1 outline-none"
+                                            />
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <div className="text-xs text-gray-400 mb-2">Ongoing Annual OpEx</div>
+                                          <div className="flex items-center">
+                                            <span className="text-white font-bold mr-1">$</span>
+                                            <input
+                                              type="number"
+                                              value={editingEpic.financial.ongoingAnnualOpex}
+                                              onChange={(e) => {
+                                                updateEditingEpic('financial.ongoingAnnualOpex', parseFloat(e.target.value) || 0);
+                                                const updated = {...editingEpic};
+                                                updated.financial.ongoingAnnualOpex = parseFloat(e.target.value) || 0;
+                                                updated.financial = generateCashFlows(updated.financial);
+                                                setEditingEpic(updated);
+                                              }}
+                                              className="w-full bg-gray-700 text-red-400 font-bold rounded px-2 py-1 outline-none"
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="bg-gray-800 p-4 rounded mb-4">
+                                      <h5 className="text-sm font-semibold text-yellow-400 mb-3">Ramp Timeline (%)</h5>
+                                      <div className="space-y-3">
+                                        {['rampYear1Percent', 'rampYear2Percent', 'rampYear3Percent'].map((key, idx) => (
+                                          <div key={key} className="flex items-center gap-3">
+                                            <span className="text-xs text-gray-400 w-16">Year {idx + 1}{idx === 2 ? '+' : ''}:</span>
+                                            <input
+                                              type="range"
+                                              min="0"
+                                              max="100"
+                                              step="5"
+                                              value={editingEpic.financial[key]}
+                                              onChange={(e) => {
+                                                updateEditingEpic(`financial.${key}`, parseFloat(e.target.value));
+                                                const updated = {...editingEpic};
+                                                updated.financial[key] = parseFloat(e.target.value);
+                                                updated.financial = generateCashFlows(updated.financial);
+                                                setEditingEpic(updated);
+                                              }}
+                                              className="flex-1"
+                                            />
+                                            <span className="text-sm text-white font-semibold w-12">{editingEpic.financial[key]}%</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </>
+                                ) : (
+                                  /* ADVANCED MODE EDITING - Year by Year */
+                                  <div className="bg-purple-900 bg-opacity-20 p-3 rounded mb-4">
+                                    <div className="text-xs text-purple-300 mb-2">Advanced mode: Edit year-by-year values in the table below</div>
+                                  </div>
+                                )}
+
+                                {/* Discount Rate & Years */}
+                                <div className="bg-gray-800 p-4 rounded mb-4">
+                                  <div className="flex items-center gap-6">
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-sm text-gray-400">Discount Rate:</span>
+                                      <input
+                                        type="number"
+                                        step="1"
+                                        value={(editingEpic.financial.discountRate * 100).toFixed(0)}
+                                        onChange={(e) => updateEditingEpic('financial.discountRate', (parseFloat(e.target.value) || 10) / 100)}
+                                        className="w-16 bg-gray-700 text-white rounded px-2 py-1 text-sm outline-none text-center"
+                                      />
+                                      <span className="text-sm text-gray-400">%</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-sm text-gray-400">Horizon:</span>
+                                      <span className="text-white font-semibold">{editingEpic.financial.yearsToShow || 5} years</span>
+                                      <div className="flex gap-1">
+                                        {(editingEpic.financial.yearsToShow || 5) > 5 && (
+                                          <button
+                                            onClick={() => updateEditingEpic('financial.yearsToShow', (editingEpic.financial.yearsToShow || 5) - 1)}
+                                            className="text-xs px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-white"
+                                          >
+                                            −
+                                          </button>
+                                        )}
+                                        {(editingEpic.financial.yearsToShow || 5) < 10 && (
+                                          <button
+                                            onClick={() => updateEditingEpic('financial.yearsToShow', (editingEpic.financial.yearsToShow || 5) + 1)}
+                                            className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-500 rounded text-white"
+                                          >
+                                            +
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Preview NPV */}
+                                <div className="bg-gradient-to-r from-yellow-600 to-orange-600 p-4 rounded-lg mb-4">
+                                  <h5 className="text-lg font-bold text-white mb-2">UPDATED NPV PREVIEW:</h5>
+                                  <div className="font-mono text-sm text-white space-y-1">
+                                    {(() => {
+                                      const npvResult = calculateNPV(editingEpic.financial);
+                                      return (
+                                        <>
+                                          <div className="text-2xl font-bold text-yellow-300">NPV = {formatCurrency(npvResult.npv)}</div>
+                                          <div>Payback: {npvResult.paybackMonths ? `~${npvResult.paybackMonths} months` : `>${(editingEpic.financial.yearsToShow || 5) * 12} months`}</div>
+                                        </>
+                                      );
+                                    })()}
+                                  </div>
+                                </div>
+                              </>
+                            ) : (
+                              /* READ-ONLY MODE */
+                              <>
+                                <div className="bg-blue-900 bg-opacity-30 p-3 rounded mb-4">
+                                  <h5 className="text-md font-semibold text-blue-400 mb-2">NPV Formula</h5>
+                                  <div className="font-mono text-sm text-white">
+                                    NPV = -Initial Investment + Σ (Net Cash Flow<sub>t</sub> / (1 + r)<sup>t</sup>)
+                                  </div>
+                                  <div className="text-xs text-gray-300 mt-2">
+                                    Where: r = discount rate ({(epic.financial.discountRate * 100).toFixed(0)}%), t = each year in projection horizon
+                                  </div>
+                                  <div className="text-xs text-gray-300 mt-1">
+                                    Net Cash Flow = Revenue - Operating Expenses (OpEx)
+                                  </div>
+                                </div>
+                                
+                                <div className="grid grid-cols-3 gap-4 mb-4">
+                                  <div className="bg-gray-800 p-3 rounded">
+                                    <div className="text-sm text-gray-400">Fixed Costs</div>
+                                    <div className="text-lg font-bold text-white">{formatCurrency(epic.financial.fixedCosts)}</div>
+                                  </div>
+                                  <div className="bg-gray-800 p-3 rounded">
+                                    <div className="text-sm text-gray-400">Variable Costs</div>
+                                    <div className="text-lg font-bold text-white">{formatCurrency(epic.financial.variableCosts)}</div>
+                                  </div>
+                                  <div className="bg-gray-800 p-3 rounded">
+                                    <div className="text-sm text-gray-400">Total Investment</div>
+                                    <div className="text-lg font-bold text-red-400">{formatCurrency(epic.financial.totalInvestment)}</div>
+                                  </div>
+                                </div>
+                              </>
+                            )}
                             
                             <div className="overflow-x-auto">
                               <table className="w-full text-xs">
@@ -1437,7 +2201,15 @@ const decisionOSTool = () => {
                                   {(() => {
                                     let runningUndiscounted = -epic.financial.totalInvestment;
                                     let runningNPV = -epic.financial.totalInvestment;
-                                    return [1, 2, 3, 4, 5].map(year => {
+                                    const yearsToShow = epic.financial.yearsToShow || 5;
+                                    const displayYears = epic.paybackYear ? Math.max(yearsToShow, epic.paybackYear) : yearsToShow;
+                                    
+                                    const years = [];
+                                    for (let year = 1; year <= Math.min(displayYears, 10); year++) {
+                                      years.push(year);
+                                    }
+                                    
+                                    return years.map(year => {
                                       const revenue = epic.financial.yearlyRevenue[year] || 0;
                                       const opex = epic.financial.yearlyOpex[year] || 0;
                                       const netCashFlow = revenue - opex;
@@ -1445,9 +2217,10 @@ const decisionOSTool = () => {
                                       const discountedFlow = netCashFlow * discountFactor;
                                       runningUndiscounted += netCashFlow;
                                       runningNPV += discountedFlow;
+                                      const isPaybackYear = year === epic.paybackYear;
                                       return (
-                                        <tr key={year} className="border-t border-gray-700">
-                                          <td className="p-2 text-white font-semibold">{year}</td>
+                                        <tr key={year} className={`border-t border-gray-700 ${isPaybackYear ? 'bg-green-900 bg-opacity-20' : ''}`}>
+                                          <td className="p-2 text-white font-semibold">{year}{isPaybackYear && ' 🎯'}</td>
                                           <td className="p-2 text-right text-green-400">{formatCurrency(revenue)}</td>
                                           <td className="p-2 text-right text-red-400">{formatCurrency(opex)}</td>
                                           <td className="p-2 text-right text-white font-semibold">{formatCurrency(netCashFlow)}</td>
@@ -1471,18 +2244,23 @@ const decisionOSTool = () => {
                             <div className="mt-4 bg-gray-800 p-4 rounded border border-gray-600">
                               <h5 className="text-sm font-semibold text-white mb-3">Financial Summary</h5>
                               {(() => {
-                                const totalUndiscounted = [1, 2, 3, 4, 5].reduce((sum, year) => {
+                                const yearsToShow = epic.financial.yearsToShow || 5;
+                                let totalUndiscounted = 0;
+                                for (let year = 1; year <= yearsToShow; year++) {
                                   const revenue = epic.financial.yearlyRevenue[year] || 0;
                                   const opex = epic.financial.yearlyOpex[year] || 0;
-                                  return sum + (revenue - opex);
-                                }, 0);
-                                const totalDiscounted = [1, 2, 3, 4, 5].reduce((sum, year) => {
+                                  totalUndiscounted += (revenue - opex);
+                                }
+                                
+                                let totalDiscounted = 0;
+                                for (let year = 1; year <= yearsToShow; year++) {
                                   const revenue = epic.financial.yearlyRevenue[year] || 0;
                                   const opex = epic.financial.yearlyOpex[year] || 0;
                                   const netFlow = revenue - opex;
                                   const discountFactor = 1 / Math.pow(1 + epic.financial.discountRate, year);
-                                  return sum + (netFlow * discountFactor);
-                                }, 0);
+                                  totalDiscounted += (netFlow * discountFactor);
+                                }
+                                
                                 const timeValueCost = totalUndiscounted - totalDiscounted;
                                 const roiUndiscounted = totalUndiscounted / epic.financial.totalInvestment;
                                 const roiNPV = (epic.npv + epic.financial.totalInvestment) / epic.financial.totalInvestment;
@@ -1523,18 +2301,7 @@ const decisionOSTool = () => {
                                       <div className="flex justify-between">
                                         <span className="text-gray-400">Payback Period:</span>
                                         <span className="text-white font-semibold">
-                                          {(() => {
-                                            let cumulative = -epic.financial.totalInvestment;
-                                            for (let year = 1; year <= 5; year++) {
-                                              const revenue = epic.financial.yearlyRevenue[year] || 0;
-                                              const opex = epic.financial.yearlyOpex[year] || 0;
-                                              cumulative += (revenue - opex);
-                                              if (cumulative >= 0) {
-                                                return `~${year === 1 ? '11' : year === 2 ? '23' : year * 12} months`;
-                                              }
-                                            }
-                                            return '>60 months';
-                                          })()}
+                                          {epic.paybackMonths ? `~${epic.paybackMonths} months` : `>${(epic.financial.yearsToShow || 5) * 12} months`}
                                         </span>
                                       </div>
                                     </div>
@@ -1546,20 +2313,23 @@ const decisionOSTool = () => {
                             <div className="mt-4 text-xs text-gray-400 italic">
                               <strong>Note:</strong> Discount factor for year t = 1 / (1 + {(epic.financial.discountRate * 100).toFixed(0)}%)<sup>t</sup>. 
                               The "Time Value Adjustment" shows the {formatCurrency((() => {
-                                const totalUndiscounted = [1, 2, 3, 4, 5].reduce((sum, year) => {
+                                const yearsToShow = epic.financial.yearsToShow || 5;
+                                let totalUndiscounted = 0;
+                                for (let year = 1; year <= yearsToShow; year++) {
                                   const revenue = epic.financial.yearlyRevenue[year] || 0;
                                   const opex = epic.financial.yearlyOpex[year] || 0;
-                                  return sum + (revenue - opex);
-                                }, 0);
-                                const totalDiscounted = [1, 2, 3, 4, 5].reduce((sum, year) => {
+                                  totalUndiscounted += (revenue - opex);
+                                }
+                                let totalDiscounted = 0;
+                                for (let year = 1; year <= yearsToShow; year++) {
                                   const revenue = epic.financial.yearlyRevenue[year] || 0;
                                   const opex = epic.financial.yearlyOpex[year] || 0;
                                   const netFlow = revenue - opex;
                                   const discountFactor = 1 / Math.pow(1 + epic.financial.discountRate, year);
-                                  return sum + (netFlow * discountFactor);
-                                }, 0);
+                                  totalDiscounted += (netFlow * discountFactor);
+                                }
                                 return totalUndiscounted - totalDiscounted;
-                              })())} "cost of waiting" for future cash flows, accounting for the time value of money.
+                              })())} "cost of waiting" for future cash flows. {epic.paybackYear && `Payback year (Year ${epic.paybackYear}) is highlighted with 🎯.`} Table extends through payback or all projection years (max 10).
                             </div>
                           </div>
                         )}
@@ -1576,66 +2346,163 @@ const decisionOSTool = () => {
                         </button>
                         {expandedSections[epic.id + '-ndr'] && (
                           <div className="p-4 space-y-4">
-                            <div>
-                              <h5 className="text-md font-semibold text-green-400 mb-2">BenefitScore Components:</h5>
-                              <div className="space-y-2">
-                                {['upar', 'map', 'cev', 'star', 'ai'].map((key) => (
-                                  <div key={key} className="bg-gray-800 p-3 rounded">
-                                    <div className="flex justify-between items-start mb-1">
-                                      <div className="flex-1">
-                                        <div className="font-semibold text-white uppercase">{key}</div>
-                                        <div className="text-xs text-gray-400">{epic.ndr[key].name}</div>
+                            {editingEpic?.id === epic.id ? (
+                              /* EDITING MODE */
+                              <>
+                                <div className="bg-blue-900 bg-opacity-30 p-3 rounded border border-blue-600 mb-4">
+                                  <div className="text-sm text-blue-300 font-semibold mb-1">✏️ Editing Mode Active</div>
+                                  <div className="text-xs text-gray-300">Adjust Phase, Financial, and NDR scores below, then click "Save Changes" at the bottom</div>
+                                </div>
+
+                                <div>
+                                  <h5 className="text-md font-semibold text-green-400 mb-3">BenefitScore Components:</h5>
+                                  <div className="space-y-3">
+                                    {['upar', 'map', 'cev', 'star', 'ai'].map((key) => (
+                                      <div key={key} className="bg-gray-800 p-3 rounded">
+                                        <div className="font-semibold text-white uppercase mb-1">{key}</div>
+                                        <div className="text-xs text-gray-400 mb-2">{editingEpic.ndr[key].name}</div>
+                                        <ScoreSlider 
+                                          label="" 
+                                          value={editingEpic.ndr[key].score} 
+                                          onChange={(v) => updateEditingEpic(`ndr.${key}.score`, v)} 
+                                        />
                                       </div>
-                                      <div className="text-xl font-bold text-blue-400">{epic.ndr[key].score.toFixed(1)}</div>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <h5 className="text-md font-semibold text-blue-400 mb-3">FinancialScore (VCRM):</h5>
+                                  <div className="bg-gray-800 p-3 rounded">
+                                    <div className="font-semibold text-white mb-1">VCRM</div>
+                                    <div className="text-xs text-gray-400 mb-2">{editingEpic.ndr.vcrm.name}</div>
+                                    <ScoreSlider 
+                                      label="" 
+                                      value={editingEpic.ndr.vcrm.score} 
+                                      onChange={(v) => updateEditingEpic('ndr.vcrm.score', v)} 
+                                    />
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <h5 className="text-md font-semibold text-purple-400 mb-3">FeasMult (LAYER):</h5>
+                                  <div className="bg-gray-800 p-3 rounded">
+                                    <div className="font-semibold text-white mb-1">LAYER</div>
+                                    <div className="text-xs text-gray-400 mb-2">{editingEpic.ndr.layer.name}</div>
+                                    <ScoreSlider 
+                                      label="" 
+                                      value={editingEpic.ndr.layer.score} 
+                                      onChange={(v) => updateEditingEpic('ndr.layer.score', v)} 
+                                    />
+                                  </div>
+                                  <div className="mt-3 p-3 bg-purple-900 bg-opacity-30 rounded">
+                                    <div className="font-mono text-sm text-white">
+                                      FeasMult = 0.5 + 0.5 × ({editingEpic.ndr.layer.score.toFixed(1)} / 10) = {(0.5 + 0.5 * (editingEpic.ndr.layer.score / 10)).toFixed(3)}
                                     </div>
                                   </div>
-                                ))}
-                              </div>
-                              <div className="mt-3 p-3 bg-green-900 bg-opacity-30 rounded">
-                                <div className="font-mono text-sm text-white">
-                                  BenefitScore = {epic.benefitScore.toFixed(2)}
                                 </div>
-                              </div>
-                            </div>
 
-                            <div>
-                              <h5 className="text-md font-semibold text-blue-400 mb-2">FinancialScore (VCRM):</h5>
-                              <div className="bg-gray-800 p-3 rounded">
-                                <div className="flex justify-between items-start mb-1">
-                                  <div className="flex-1">
-                                    <div className="font-semibold text-white">VCRM</div>
-                                    <div className="text-xs text-gray-400">{epic.ndr.vcrm.name}</div>
+                                <div className="bg-gradient-to-r from-yellow-600 to-orange-600 p-4 rounded-lg">
+                                  <h5 className="text-lg font-bold text-white mb-2">UPDATED NDR PREVIEW:</h5>
+                                  <div className="font-mono text-sm text-white space-y-1">
+                                    {(() => {
+                                      const ndrCalc = calculateNDR(editingEpic.ndr);
+                                      return (
+                                        <>
+                                          <div>NDR = (0.5 × {ndrCalc.benefitScore.toFixed(2)} + 0.5 × {ndrCalc.financialScore.toFixed(2)}) × {ndrCalc.feasMult.toFixed(3)}</div>
+                                          <div className="text-2xl font-bold text-yellow-300">NDR = {ndrCalc.ndrScore.toFixed(2)}</div>
+                                        </>
+                                      );
+                                    })()}
                                   </div>
-                                  <div className="text-xl font-bold text-blue-400">{epic.ndr.vcrm.score.toFixed(1)}</div>
                                 </div>
-                              </div>
-                            </div>
 
-                            <div>
-                              <h5 className="text-md font-semibold text-purple-400 mb-2">FeasMult (LAYER):</h5>
-                              <div className="bg-gray-800 p-3 rounded">
-                                <div className="flex justify-between items-start mb-1">
-                                  <div className="flex-1">
-                                    <div className="font-semibold text-white">LAYER</div>
-                                    <div className="text-xs text-gray-400">{epic.ndr.layer.name}</div>
+                                <div className="flex gap-3 pt-4 border-t border-gray-700">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      saveEditedEpic();
+                                    }}
+                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded transition-colors"
+                                  >
+                                    ✓ Save Changes
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      cancelEditing();
+                                    }}
+                                    className="px-6 bg-gray-600 hover:bg-gray-500 text-white py-2 rounded transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </>
+                            ) : (
+                              /* READ-ONLY MODE */
+                              <>
+                                <div>
+                                  <h5 className="text-md font-semibold text-green-400 mb-2">BenefitScore Components:</h5>
+                                  <div className="space-y-2">
+                                    {['upar', 'map', 'cev', 'star', 'ai'].map((key) => (
+                                      <div key={key} className="bg-gray-800 p-3 rounded">
+                                        <div className="flex justify-between items-start mb-1">
+                                          <div className="flex-1">
+                                            <div className="font-semibold text-white uppercase">{key}</div>
+                                            <div className="text-xs text-gray-400">{epic.ndr[key].name}</div>
+                                          </div>
+                                          <div className="text-xl font-bold text-blue-400">{epic.ndr[key].score.toFixed(1)}</div>
+                                        </div>
+                                      </div>
+                                    ))}
                                   </div>
-                                  <div className="text-xl font-bold text-blue-400">{epic.ndr.layer.score.toFixed(1)}</div>
+                                  <div className="mt-3 p-3 bg-green-900 bg-opacity-30 rounded">
+                                    <div className="font-mono text-sm text-white">
+                                      BenefitScore = {epic.benefitScore.toFixed(2)}
+                                    </div>
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="mt-3 p-3 bg-purple-900 bg-opacity-30 rounded">
-                                <div className="font-mono text-sm text-white">
-                                  FeasMult = 0.5 + 0.5 × ({epic.ndr.layer.score.toFixed(1)} / 10) = {epic.feasMult.toFixed(3)}
-                                </div>
-                              </div>
-                            </div>
 
-                            <div className="bg-gradient-to-r from-yellow-600 to-orange-600 p-4 rounded-lg">
-                              <h5 className="text-lg font-bold text-white mb-2">FINAL CALCULATION:</h5>
-                              <div className="font-mono text-sm text-white space-y-1">
-                                <div>NDR = (0.5 × {epic.benefitScore.toFixed(2)} + 0.5 × {epic.financialScore.toFixed(2)}) × {epic.feasMult.toFixed(3)}</div>
-                                <div className="text-2xl font-bold text-yellow-300">NDR = {epic.ndrScore.toFixed(2)}</div>
-                              </div>
-                            </div>
+                                <div>
+                                  <h5 className="text-md font-semibold text-blue-400 mb-2">FinancialScore (VCRM):</h5>
+                                  <div className="bg-gray-800 p-3 rounded">
+                                    <div className="flex justify-between items-start mb-1">
+                                      <div className="flex-1">
+                                        <div className="font-semibold text-white">VCRM</div>
+                                        <div className="text-xs text-gray-400">{epic.ndr.vcrm.name}</div>
+                                      </div>
+                                      <div className="text-xl font-bold text-blue-400">{epic.ndr.vcrm.score.toFixed(1)}</div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <h5 className="text-md font-semibold text-purple-400 mb-2">FeasMult (LAYER):</h5>
+                                  <div className="bg-gray-800 p-3 rounded">
+                                    <div className="flex justify-between items-start mb-1">
+                                      <div className="flex-1">
+                                        <div className="font-semibold text-white">LAYER</div>
+                                        <div className="text-xs text-gray-400">{epic.ndr.layer.name}</div>
+                                      </div>
+                                      <div className="text-xl font-bold text-blue-400">{epic.ndr.layer.score.toFixed(1)}</div>
+                                    </div>
+                                  </div>
+                                  <div className="mt-3 p-3 bg-purple-900 bg-opacity-30 rounded">
+                                    <div className="font-mono text-sm text-white">
+                                      FeasMult = 0.5 + 0.5 × ({epic.ndr.layer.score.toFixed(1)} / 10) = {epic.feasMult.toFixed(3)}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="bg-gradient-to-r from-yellow-600 to-orange-600 p-4 rounded-lg">
+                                  <h5 className="text-lg font-bold text-white mb-2">FINAL CALCULATION:</h5>
+                                  <div className="font-mono text-sm text-white space-y-1">
+                                    <div>NDR = (0.5 × {epic.benefitScore.toFixed(2)} + 0.5 × {epic.financialScore.toFixed(2)}) × {epic.feasMult.toFixed(3)}</div>
+                                    <div className="text-2xl font-bold text-yellow-300">NDR = {epic.ndrScore.toFixed(2)}</div>
+                                  </div>
+                                </div>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1660,4 +2527,7 @@ const decisionOSTool = () => {
   );
 };
 
-export default decisionOSTool;
+ReactDOM.render(<DecisionOSTool />, document.getElementById('root'));
+  </script>
+</body>
+</html>
